@@ -1,0 +1,561 @@
+[
+    {
+        "id": "a0b4586d050b7bb9",
+        "type": "tab",
+        "label": "Flow 1",
+        "disabled": false,
+        "info": "",
+        "env": []
+    },
+    {
+        "id": "mqtt_broker_config",
+        "type": "mqtt-broker",
+        "name": "Local Mosquitto",
+        "broker": "localhost",
+        "port": "1883",
+        "clientid": "node-red-backend",
+        "autoConnect": true,
+        "usetls": false,
+        "protocolVersion": "4",
+        "keepalive": 15,
+        "cleansession": true,
+        "autoUnsubscribe": true,
+        "birthTopic": "",
+        "birthQos": "0",
+        "birthPayload": "",
+        "birthMsg": {},
+        "closeTopic": "",
+        "closePayload": "",
+        "closeMsg": {},
+        "willTopic": "",
+        "willQos": "0",
+        "willPayload": "",
+        "willMsg": {},
+        "userProps": "",
+        "sessionExpiry": ""
+    },
+    {
+        "id": "8a70bd1a5ea1cf77",
+        "type": "sqlitedb",
+        "db": "C:/node-red-data/iot_suhu.sqlite",
+        "mode": "RWC"
+    },
+    {
+        "id": "f0428b0ad71d403e",
+        "type": "websocket-listener",
+        "path": "/ws/sensor",
+        "wholemsg": "false"
+    },
+    {
+        "id": "mqtt_sensor_in",
+        "type": "mqtt in",
+        "z": "a0b4586d050b7bb9",
+        "name": "Subscribe Sensor",
+        "topic": "iot/sensor",
+        "qos": "0",
+        "datatype": "json",
+        "broker": "mqtt_broker_config",
+        "nl": false,
+        "rap": false,
+        "inputs": 0,
+        "x": 130,
+        "y": 20,
+        "wires": [
+            [
+                "store_sensor"
+            ]
+        ]
+    },
+    {
+        "id": "store_sensor",
+        "type": "function",
+        "z": "a0b4586d050b7bb9",
+        "name": "Simpan Data Sensor",
+        "func": "// Simpan ke context global\nvar data = msg.payload;\ndata.received = new Date().toISOString();\nflow.set('lastSensor', data);\n\n// Simpan history (max 50 data)\nvar history = flow.get('history') || [];\nhistory.push(data);\nif (history.length > 50) history.shift();\nflow.set('history', history);\n\nreturn msg;",
+        "outputs": 1,
+        "x": 370,
+        "y": 20,
+        "wires": [
+            [
+                "debug_sensor",
+                "73c26c43a0c047b1",
+                "0ee33c2c8f75fe13",
+                "fa13d2ae191c2748",
+                "819c35596ccb1fb5"
+            ]
+        ]
+    },
+    {
+        "id": "debug_sensor",
+        "type": "debug",
+        "z": "a0b4586d050b7bb9",
+        "name": "Log Sensor",
+        "active": true,
+        "complete": "payload",
+        "x": 610,
+        "y": 20,
+        "wires": []
+    },
+    {
+        "id": "http_get_suhu",
+        "type": "http in",
+        "z": "a0b4586d050b7bb9",
+        "name": "GET /api/suhu",
+        "url": "/api/suhu",
+        "method": "get",
+        "upload": false,
+        "swaggerDoc": "",
+        "x": 130,
+        "y": 120,
+        "wires": [
+            [
+                "resp_suhu"
+            ]
+        ]
+    },
+    {
+        "id": "resp_suhu",
+        "type": "function",
+        "z": "a0b4586d050b7bb9",
+        "name": "Build Response Suhu",
+        "func": "var data = flow.get('lastSensor') || {suhu: null, kelembaban: null, timestamp: null};\nmsg.payload = {\n    status: 'success',\n    data: data,\n    server_time: new Date().toISOString()\n};\nmsg.headers = {'Access-Control-Allow-Origin': '*'};\nreturn msg;",
+        "outputs": 1,
+        "x": 370,
+        "y": 120,
+        "wires": [
+            [
+                "http_resp_suhu"
+            ]
+        ]
+    },
+    {
+        "id": "http_resp_suhu",
+        "type": "http response",
+        "z": "a0b4586d050b7bb9",
+        "name": "",
+        "statusCode": "200",
+        "headers": {},
+        "x": 600,
+        "y": 120,
+        "wires": []
+    },
+    {
+        "id": "http_get_history",
+        "type": "http in",
+        "z": "a0b4586d050b7bb9",
+        "name": "GET /api/history",
+        "url": "/api/history",
+        "method": "get",
+        "upload": false,
+        "swaggerDoc": "",
+        "x": 100,
+        "y": 200,
+        "wires": [
+            [
+                "15fac4c061d85cd4"
+            ]
+        ]
+    },
+    {
+        "id": "resp_history",
+        "type": "function",
+        "z": "a0b4586d050b7bb9",
+        "name": "Build Response History",
+        "func": "var rows = Array.isArray(msg.payload) ? msg.payload : [];\nmsg.payload = {\n    status: 'success',\n    count: rows.length,\n    data: rows\n};\nmsg.headers = { 'Access-Control-Allow-Origin': '*' };\nreturn msg;",
+        "outputs": 1,
+        "timeout": "",
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 370,
+        "y": 200,
+        "wires": [
+            [
+                "http_resp_history"
+            ]
+        ]
+    },
+    {
+        "id": "http_resp_history",
+        "type": "http response",
+        "z": "a0b4586d050b7bb9",
+        "name": "",
+        "statusCode": "200",
+        "headers": {},
+        "x": 600,
+        "y": 200,
+        "wires": []
+    },
+    {
+        "id": "http_post_kontrol",
+        "type": "http in",
+        "z": "a0b4586d050b7bb9",
+        "name": "POST /api/kontrol",
+        "url": "/api/kontrol",
+        "method": "post",
+        "upload": false,
+        "swaggerDoc": "",
+        "x": 140,
+        "y": 280,
+        "wires": [
+            [
+                "proc_kontrol"
+            ]
+        ]
+    },
+    {
+        "id": "proc_kontrol",
+        "type": "function",
+        "z": "a0b4586d050b7bb9",
+        "name": "Validasi & Publish",
+        "func": "var body = msg.payload;\nif (!body.device || !body.action) {\n    msg.statusCode = 400;\n    msg.payload = {status: 'error', message: 'device dan action wajib diisi'};\n    msg.headers = {'Access-Control-Allow-Origin': '*'};\n    return msg;\n}\n\n// Publish ke MQTT\nvar mqttMsg = {payload: body, topic: 'iot/kontrol'};\nnode.send([null, mqttMsg]);\n\nmsg.statusCode = 200;\nmsg.payload = {\n    status: 'success',\n    message: 'Perintah terkirim',\n    sent: body\n};\nmsg.headers = {'Access-Control-Allow-Origin': '*'};\nreturn [msg, null];",
+        "outputs": 2,
+        "x": 360,
+        "y": 280,
+        "wires": [
+            [
+                "http_resp_kontrol"
+            ],
+            [
+                "mqtt_publish_kontrol"
+            ]
+        ]
+    },
+    {
+        "id": "http_resp_kontrol",
+        "type": "http response",
+        "z": "a0b4586d050b7bb9",
+        "name": "",
+        "x": 630,
+        "y": 260,
+        "wires": []
+    },
+    {
+        "id": "mqtt_publish_kontrol",
+        "type": "mqtt out",
+        "z": "a0b4586d050b7bb9",
+        "name": "Publish Kontrol",
+        "topic": "",
+        "qos": "0",
+        "retain": "false",
+        "broker": "mqtt_broker_config",
+        "x": 640,
+        "y": 300,
+        "wires": []
+    },
+    {
+        "id": "http_cors",
+        "type": "http in",
+        "z": "a0b4586d050b7bb9",
+        "name": "OPTIONS CORS",
+        "url": "/api/*",
+        "method": "options",
+        "upload": false,
+        "swaggerDoc": "",
+        "x": 140,
+        "y": 360,
+        "wires": [
+            [
+                "cors_resp"
+            ]
+        ]
+    },
+    {
+        "id": "cors_resp",
+        "type": "function",
+        "z": "a0b4586d050b7bb9",
+        "name": "CORS Headers",
+        "func": "msg.statusCode = 204;\nmsg.payload = '';\nmsg.headers = {\n    'Access-Control-Allow-Origin': '*',\n    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',\n    'Access-Control-Allow-Headers': 'Content-Type'\n};\nreturn msg;",
+        "outputs": 1,
+        "x": 340,
+        "y": 360,
+        "wires": [
+            [
+                "cors_http_resp"
+            ]
+        ]
+    },
+    {
+        "id": "cors_http_resp",
+        "type": "http response",
+        "z": "a0b4586d050b7bb9",
+        "name": "",
+        "x": 530,
+        "y": 360,
+        "wires": []
+    },
+    {
+        "id": "38e66d5bb0ee0821",
+        "type": "sqlite",
+        "z": "a0b4586d050b7bb9",
+        "mydb": "8a70bd1a5ea1cf77",
+        "sqlquery": "msg.topic",
+        "sql": "",
+        "name": "",
+        "x": 730,
+        "y": 460,
+        "wires": [
+            [
+                "resp_history"
+            ]
+        ]
+    },
+    {
+        "id": "4cc9a5ac521db105",
+        "type": "inject",
+        "z": "a0b4586d050b7bb9",
+        "name": "",
+        "props": [
+            {
+                "p": "payload"
+            },
+            {
+                "p": "topic",
+                "vt": "str"
+            }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "",
+        "payloadType": "date",
+        "x": 140,
+        "y": 460,
+        "wires": [
+            [
+                "b1d6dae039b49d8c"
+            ]
+        ]
+    },
+    {
+        "id": "b1d6dae039b49d8c",
+        "type": "function",
+        "z": "a0b4586d050b7bb9",
+        "name": "Create Table",
+        "func": "msg.topic = `CREATE TABLE IF NOT EXISTS sensor_logs (\n  id INTEGER PRIMARY KEY AUTOINCREMENT,\n  suhu REAL,\n  kelembaban REAL,\n  timestamp TEXT,\n  received TEXT\n)`;\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 330,
+        "y": 460,
+        "wires": [
+            [
+                "38e66d5bb0ee0821"
+            ]
+        ]
+    },
+    {
+        "id": "0ee33c2c8f75fe13",
+        "type": "function",
+        "z": "a0b4586d050b7bb9",
+        "name": "Insert Sensor Log",
+        "func": "let d = msg.payload;\nif (typeof d === 'string') {\n    try { d = JSON.parse(d); } catch (e) { d = {}; }\n}\nif (!d || typeof d !== 'object') {\n    d = flow.get('last_sensor_raw') || {};\n}\n\nconst suhu = Number(d.suhu ?? 0);\nconst kelembaban = Number(d.kelembaban ?? 0);\nconst timestamp = String(d.timestamp ?? new Date().toISOString());\nconst received = String(d.received ?? new Date().toISOString());\n\nnode.warn({ dariInsertSensorLog: { suhu, kelembaban, timestamp, received } });\n\nmsg.topic = `INSERT INTO sensor_logs (suhu, kelembaban, timestamp, received) VALUES (${suhu}, ${kelembaban}, '${timestamp}', '${received}')`;\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 350,
+        "y": 600,
+        "wires": [
+            [
+                "38e66d5bb0ee0821"
+            ]
+        ]
+    },
+    {
+        "id": "15fac4c061d85cd4",
+        "type": "function",
+        "z": "a0b4586d050b7bb9",
+        "name": "Query History SQLite",
+        "func": "msg.topic = `SELECT id, suhu, kelembaban, timestamp, received FROM sensor_logs ORDER BY id DESC LIMIT 20`;\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 340,
+        "y": 680,
+        "wires": [
+            [
+                "38e66d5bb0ee0821"
+            ]
+        ]
+    },
+    {
+        "id": "73c26c43a0c047b1",
+        "type": "debug",
+        "z": "a0b4586d050b7bb9",
+        "name": "debug 1",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "false",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 660,
+        "y": 620,
+        "wires": []
+    },
+    {
+        "id": "8e713e94acd49d9a",
+        "type": "http in",
+        "z": "a0b4586d050b7bb9",
+        "name": "",
+        "url": "/api/threshold",
+        "method": "put",
+        "upload": false,
+        "skipBodyParsing": false,
+        "swaggerDoc": "",
+        "x": 1270,
+        "y": 80,
+        "wires": [
+            [
+                "8f3bdae4d82a19e3"
+            ]
+        ]
+    },
+    {
+        "id": "8f3bdae4d82a19e3",
+        "type": "function",
+        "z": "a0b4586d050b7bb9",
+        "name": "Set Threshold",
+        "func": "const apiKey = msg.req && (msg.req.headers[\"x-api-key\"] || msg.req.headers[\"X-API-Key\"]);\nconst VALID_KEY = \"rahasia123\";\n\nif (apiKey !== VALID_KEY) {\n    msg.statusCode = 401;\n    msg.payload = {\n        status: \"error\",\n        message: \"Unauthorized: X-API-Key tidak valid atau tidak ada\"\n    };\n    return msg;\n}\n\nlet body = msg.payload;\nif (typeof body === 'string') {\n    try { body = JSON.parse(body); } catch (e) { body = {}; }\n}\n\nconst batasSuhu = Number(body.max_suhu ?? body.threshold ?? body.suhu);\n\nif (Number.isNaN(batasSuhu)) {\n    msg.statusCode = 400;\n    msg.payload = {\n        status: \"error\",\n        message: \"Format salah. Kirim JSON seperti {\\\"max_suhu\\\": 32}\"\n    };\n    return msg;\n}\n\nflow.set(\"batas_suhu\", batasSuhu);\n\nmsg.statusCode = 200;\nmsg.payload = {\n    status: \"success\",\n    message: \"Batas suhu berhasil diatur\",\n    batas_suhu: batasSuhu\n};\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 1520,
+        "y": 80,
+        "wires": [
+            [
+                "7a7e114c9ede03ab"
+            ]
+        ]
+    },
+    {
+        "id": "7a7e114c9ede03ab",
+        "type": "http response",
+        "z": "a0b4586d050b7bb9",
+        "name": "",
+        "statusCode": "",
+        "headers": {},
+        "x": 1670,
+        "y": 180,
+        "wires": []
+    },
+    {
+        "id": "fa13d2ae191c2748",
+        "type": "function",
+        "z": "a0b4586d050b7bb9",
+        "name": "Cek & Notif Suhu",
+        "func": "let d = msg.payload;\nif (typeof d === 'string') {\n    try { d = JSON.parse(d); } catch (e) { d = {}; }\n}\n\nlet suhu = d && d.suhu !== undefined ? Number(d.suhu) : NaN;\nif (Number.isNaN(suhu)) {\n    const last = flow.get('last_sensor_raw');\n    if (last && last.suhu !== undefined) {\n        suhu = Number(last.suhu);\n    }\n}\n\nconst batasSuhu = Number(flow.get(\"batas_suhu\") ?? 32);\n\nif (!Number.isNaN(suhu) && suhu > batasSuhu) {\n    const notif = {\n        type: \"temperature_alert\",\n        status: \"warning\",\n        message: `Suhu ${suhu}°C melewati batas maksimum ${batasSuhu}°C!`,\n        suhu: suhu,\n        batas_suhu: batasSuhu,\n        timestamp: (d && d.timestamp) || new Date().toISOString()\n    };\n\n    node.warn(notif.message);\n    flow.set(\"last_alert\", notif);\n\n    msg.payload = notif;\n    return msg;\n}\n\nreturn null;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 1350,
+        "y": 340,
+        "wires": [
+            [
+                "9d21c6b5ad9b7fb1"
+            ]
+        ]
+    },
+    {
+        "id": "9d21c6b5ad9b7fb1",
+        "type": "debug",
+        "z": "a0b4586d050b7bb9",
+        "name": "debug 2",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "false",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 1560,
+        "y": 340,
+        "wires": []
+    },
+    {
+        "id": "56a92b43f3f4ae52",
+        "type": "http in",
+        "z": "a0b4586d050b7bb9",
+        "name": "",
+        "url": "/dashboard",
+        "method": "get",
+        "upload": false,
+        "skipBodyParsing": false,
+        "swaggerDoc": "",
+        "x": 2100,
+        "y": 160,
+        "wires": [
+            [
+                "2d9d91e9ad7d0ed1"
+            ]
+        ]
+    },
+    {
+        "id": "2d9d91e9ad7d0ed1",
+        "type": "template",
+        "z": "a0b4586d050b7bb9",
+        "name": "Dashboard HTML",
+        "field": "payload",
+        "fieldType": "msg",
+        "format": "handlebars",
+        "syntax": "mustache",
+        "template": "<!DOCTYPE html>\n<html lang=\"id\">\n<head>\n  <meta charset=\"UTF-8\" />\n  <title>Dashboard Monitoring Suhu</title>\n  <script src=\"https://cdn.jsdelivr.net/npm/chart.js\"></script>\n  <style>\n    body { font-family: Arial, sans-serif; margin: 24px; background: #111827; color: #f9fafb; }\n    .card { max-width: 960px; margin: auto; background: #1f2937; padding: 20px; border-radius: 12px; }\n    .info { display: flex; gap: 16px; margin-bottom: 16px; flex-wrap: wrap; align-items: center; }\n    .badge { background: #374151; padding: 8px 14px; border-radius: 8px; }\n    .alert { background: #7f1d1d; color: #fecaca; padding: 10px 14px; border-radius: 8px; margin-bottom: 16px; display: none; }\n    .ws-status { font-size: 13px; color: #9ca3af; margin-bottom: 12px; }\n  </style>\n</head>\n<body>\n  <div class=\"card\">\n    <h2>Monitoring Suhu & Kelembaban (Real-Time)</h2>\n    <div id=\"wsStatus\" class=\"ws-status\">WebSocket: Menghubungkan...</div>\n    <div class=\"info\">\n      <div class=\"badge\">Suhu Terakhir: <strong id=\"suhuNow\">-</strong> °C</div>\n      <div class=\"badge\">Kelembaban: <strong id=\"humNow\">-</strong> %</div>\n      <div class=\"badge\">\n        Batas Suhu: <input id=\"batasInput\" type=\"number\" step=\"0.5\" value=\"29\" style=\"width:65px;\">\n        <button onclick=\"setBatas()\">Simpan</button>\n      </div>\n    </div>\n    <div id=\"alertBox\" class=\"alert\"></div>\n    <canvas id=\"sensorChart\" height=\"110\"></canvas>\n  </div>\n\n  <script>\n    const ctx = document.getElementById('sensorChart').getContext('2d');\n    const chart = new Chart(ctx, {\n      type: 'line',\n      data: {\n        labels: [],\n        datasets: [\n          { label: 'Suhu (°C)', data: [], borderColor: '#f87171', tension: 0.3 },\n          { label: 'Kelembaban (%)', data: [], borderColor: '#60a5fa', tension: 0.3 }\n        ]\n      },\n      options: { animation: false, scales: { y: { beginAtZero: false } } }\n    });\n\n    function updateTampilan(item) {\n      if (!item || item.suhu === undefined) return;\n      const waktu = new Date(item.received || item.timestamp || Date.now()).toLocaleTimeString();\n\n      chart.data.labels.push(waktu);\n      chart.data.datasets[0].data.push(Number(item.suhu));\n      chart.data.datasets[1].data.push(Number(item.kelembaban));\n\n      if (chart.data.labels.length > 20) {\n        chart.data.labels.shift();\n        chart.data.datasets[0].data.shift();\n        chart.data.datasets[1].data.shift();\n      }\n      chart.update();\n\n      document.getElementById('suhuNow').textContent = item.suhu;\n      document.getElementById('humNow').textContent = item.kelembaban;\n\n      const batas = Number(document.getElementById('batasInput').value || 29);\n      const alertBox = document.getElementById('alertBox');\n      if (Number(item.suhu) > batas) {\n        alertBox.style.display = 'block';\n        alertBox.textContent = `Peringatan! Suhu ${item.suhu}°C melewati batas ${batas}°C`;\n      } else {\n        alertBox.style.display = 'none';\n      }\n    }\n\n    async function muatAwal() {\n      const res = await fetch('/api/history');\n      const json = await res.json();\n      const rows = (json.data || []).slice().reverse();\n      rows.forEach(updateTampilan);\n    }\n\n    function hubungkanWS() {\n      const wsProtocol = location.protocol === 'https:' ? 'wss:' : 'ws:';\n      const ws = new WebSocket(`${wsProtocol}//${location.host}/ws/sensor`);\n      const statusEl = document.getElementById('wsStatus');\n\n      ws.onopen = () => {\n        statusEl.textContent = 'WebSocket: Terhubung (Real-time push aktif)';\n      };\n\n      ws.onmessage = (event) => {\n        let data = event.data;\n        if (typeof data === 'string') {\n          try { data = JSON.parse(data); } catch (e) { return; }\n        }\n        updateTampilan(data);\n      };\n\n      ws.onclose = () => {\n        statusEl.textContent = 'WebSocket: Terputus, mencoba hubungkan ulang...';\n        setTimeout(hubungkanWS, 2000);\n      };\n    }\n\n    async function setBatas() {\n      const val = Number(document.getElementById('batasInput').value);\n      await fetch('/api/threshold', {\n        method: 'PUT',\n        headers: { 'Content-Type': 'application/json' },\n        body: JSON.stringify({ max_suhu: val })\n      });\n    }\n\n    muatAwal();\n    hubungkanWS();\n  </script>\n</body>\n</html>",
+        "output": "str",
+        "x": 2330,
+        "y": 160,
+        "wires": [
+            [
+                "57f6cbaf6503c4fc"
+            ]
+        ]
+    },
+    {
+        "id": "57f6cbaf6503c4fc",
+        "type": "http response",
+        "z": "a0b4586d050b7bb9",
+        "name": "",
+        "statusCode": "",
+        "headers": {},
+        "x": 2530,
+        "y": 160,
+        "wires": []
+    },
+    {
+        "id": "819c35596ccb1fb5",
+        "type": "websocket out",
+        "z": "a0b4586d050b7bb9",
+        "name": "",
+        "server": "f0428b0ad71d403e",
+        "client": "",
+        "x": 980,
+        "y": 20,
+        "wires": []
+    },
+    {
+        "id": "e0ba4b4e63460262",
+        "type": "global-config",
+        "env": [],
+        "modules": {
+            "node-red-node-sqlite": "2.0.1"
+        }
+    }
+]
