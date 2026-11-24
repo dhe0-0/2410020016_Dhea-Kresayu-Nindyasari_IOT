@@ -11,3 +11,4 @@
 1. Jalankan Node-RED (`node-red`).
 2. Buka editor di `http://localhost:1880` dan import `flows.json` jika diperlukan.
 3. Buka dashboard di `http://localhost:1880/dashboard`.
+4. Jalankan simulator sensor MQTT (`python simulasi_esp32.py`) untuk mengirim data simulasi ke topik `iot/sensor`.
